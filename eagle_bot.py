@@ -20,9 +20,8 @@ app = Flask(__name__)
 # Eagle can run independently as a web application/API and may
 # later be embedded into larger products, including Alpha assets.
 # ============================================================
-BOT_TOKEN = os.environ.get("8560176445:AAGm_kUPsMBGUKpTcGYY2Gs436BQuAodweQ", "").strip()
-YOUR_USER_ID = os.environ.get("6992393855").strip()
-TELEGRAM_CHANNEL_ID =os.environ.get("1004378665713").strip ()
+BOT_TOKEN = os.environ.get("BOT_TOKEN", "").strip()
+YOUR_USER_ID = os.environ.get("YOUR_USER_ID", "").strip()
 PUBLIC_WEB_APP_URL = os.environ.get("PUBLIC_WEB_APP_URL", "").strip().rstrip("/")
 TELEGRAM_WEBHOOK_SECRET = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
 EAGLE_AI_API_URL = os.environ.get("EAGLE_AI_API_URL", "").strip()
@@ -30,8 +29,6 @@ EAGLE_AI_API_KEY = os.environ.get("EAGLE_AI_API_KEY", "").strip()
 DATABASE_PATH = os.environ.get("DATABASE_PATH", "eagle_bot.db").strip()
 PORT = int(os.environ.get("PORT", "5000"))
 
-# Eagle Bot is globally accessible. Human support availability can
-# be layered later without making the core digital service unavailable.
 WORK_START = 0
 WORK_END = 24
 TIMEZONE_NAME = "UTC"
@@ -40,9 +37,6 @@ DB_LOCK = Lock()
 WEBHOOK_TIMEOUT_SECONDS = 12
 AI_TIMEOUT_SECONDS = 45
 
-# ============================================================
-# APP IDENTITY / COWORKER SYSTEM
-# ============================================================
 PRODUCT_NAME = "Eagle Bot"
 PRODUCT_TAGLINE = "One doorway to work, knowledge, execution, and progress."
 PRODUCT_DESCRIPTION = (
@@ -78,9 +72,6 @@ COWORKERS = {
     },
 }
 
-# ============================================================
-# DATABASE — persistent by default, Telegram-independent
-# ============================================================
 
 def db():
     connection = sqlite3.connect(DATABASE_PATH, timeout=30, check_same_thread=False)
@@ -164,7 +155,6 @@ def human_time():
 
 
 def generate_order_number():
-    # Collision-resistant while retaining the familiar EAGLE-XXXX style.
     for _ in range(20):
         code = secrets.randbelow(900000) + 100000
         order_number = f"EAGLE-{code}"
@@ -266,9 +256,6 @@ def queue_task(visitor_id, title, description, coworker_key="general", conversat
         )
     return task_id
 
-# ============================================================
-# TELEGRAM TRANSPORT — one channel among many
-# ============================================================
 
 def telegram_api(method):
     if not BOT_TOKEN:
@@ -315,7 +302,6 @@ def telegram_web_buttons():
     buttons = []
     if web_url:
         buttons.append([{"text": "🦅 Open Eagle Bot Web App", "url": web_url}])
-    # When the URL is HTTPS, Telegram clients can also open it as a Web App.
     if web_url and web_url.startswith("https://"):
         buttons.append([{"text": "⚡ Open Eagle Workspace", "web_app": {"url": web_url}}])
     return {"inline_keyboard": buttons} if buttons else None
@@ -324,9 +310,7 @@ def telegram_web_buttons():
 def is_admin(telegram_user_id):
     return str(telegram_user_id) == str(YOUR_USER_ID)
 
-# ============================================================
-# CONVERSATION STATE
-# ============================================================
+
 user_states = {}
 USER_STATE_LOCK = Lock()
 
@@ -342,10 +326,6 @@ def reset_state(user_id):
     with USER_STATE_LOCK:
         user_states[str(user_id)] = {"step": "start", "data": {}}
 
-
-# ============================================================
-# COWORKER ROUTING — provider-agnostic and expandable
-# ============================================================
 
 def choose_coworker(text):
     lower = text.lower()
@@ -412,7 +392,6 @@ def generate_eagle_response(message, coworker_key, visitor_id="web-or-telegram",
         if result:
             return result
     except Exception:
-        # Fail safely without exposing internal infrastructure details.
         pass
 
     coworker = COWORKERS.get(coworker_key, COWORKERS["general"])
@@ -434,9 +413,6 @@ def generate_eagle_response(message, coworker_key, visitor_id="web-or-telegram",
         "task_id": task_id,
     }
 
-# ============================================================
-# WEB APP — independent front door
-# ============================================================
 WEB_APP_HTML = """
 <!doctype html>
 <html lang="en">
@@ -632,9 +608,6 @@ def api_create_order():
 
     return jsonify({"ok": True, "order": order}), 201
 
-# ============================================================
-# TELEGRAM WEBHOOK
-# ============================================================
 
 def authorize_webhook():
     if not TELEGRAM_WEBHOOK_SECRET:
@@ -793,9 +766,6 @@ def handle_telegram_message(msg):
         send_telegram_message(user_id, "🔒 Analytics is available to administrators only.")
         return
 
-    # --------------------------------------------------------
-    # Existing order flow, now persisted and Telegram-aware.
-    # --------------------------------------------------------
     state = get_or_create_user_state(user_id)
 
     if state["step"] == "start":
@@ -809,8 +779,6 @@ def handle_telegram_message(msg):
                 "*(You can say 'cancel' anytime to stop)*",
             )
         else:
-            # Eagle can now accept conversational requests directly instead
-            # of forcing every interaction into the legacy order form.
             coworker_key = choose_coworker(text)
             conversation_id = create_conversation(str(user_id), coworker_key, user_id)
             save_message(conversation_id, "user", text, coworker_key)
@@ -924,7 +892,6 @@ def telegram_webhook():
             handle_telegram_message(data["message"])
         return "ok", 200
     except Exception as exc:
-        # Do not leak stack traces or infrastructure details to Telegram.
         try:
             if BOT_TOKEN and YOUR_USER_ID:
                 send_telegram_message(YOUR_USER_ID, "⚠️ Eagle Bot encountered an internal processing error.")
@@ -934,12 +901,11 @@ def telegram_webhook():
         return "error", 500
 
 
-# Backward-compatible endpoint: the original webhook posted to '/'.
 @app.post("/")
 def legacy_webhook():
     return telegram_webhook()
 
 
 if __name__ == "__main__":
-    # Development fallback only. Use gunicorn/uwsgi or another WSGI server in production.
     app.run(host="0.0.0.0", port=PORT)
+
