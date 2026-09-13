@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: eagle-bot
+    env: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn eagle_bot:app --bind 0.0.0.0:$PORT"
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: YOUR_USER_ID
+        sync: false
+      - key: EAGLE_ADMIN_KEY
+        sync: false
+      - key: PUBLIC_WEB_APP_URL
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: EAGLE_AI_API_URL
+        sync: false
+      - key: EAGLE_AI_API_KEY
+        sync: false
+      - key: EAGLE_WORLD_ENGINE_URL
+        sync: false
+      - key: EAGLE_WORLD_ENGINE_KEY
+        sync: false
+      - key: DATABASE_PATH
+        value: eagle_bot.db
